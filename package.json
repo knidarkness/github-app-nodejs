@@ -6,7 +6,7 @@
   "babel-node": "babel-node",
   "scripts": {
     "babel-node": "babel-node",
-    "build": "NODE_ENV=production babel src --out-dir dist --source-maps inline",
+    "build": "babel src --out-dir dist --source-maps inline",
     "prepublishOnly": "npm run build",
     "start": "npx babel-node src/main.js"
   },
@@ -30,5 +30,11 @@
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-babel": "^5.3.0",
     "eslint-plugin-import": "^2.18.2"
+  },
+  "dependencies": {
+    "@octokit/app": "^4.1.0",
+    "@octokit/rest": "^16.28.9",
+    "dotenv": "^8.1.0",
+    "node-fetch": "^2.6.0"
   }
 }

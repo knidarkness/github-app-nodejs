@@ -1,3 +1,8 @@
-import mockFunction from './package-updater';
+import updateRemoteRepository from './package-updater';
 
-mockFunction('World');
+const repo = 'knidarkness/test-repo';
+const packageName = 'express';
+const newVersion = '6.1.0';
+
+updateRemoteRepository(repo, packageName, newVersion)
+  .then((obj) => console.log(obj));
