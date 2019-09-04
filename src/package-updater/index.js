@@ -1,4 +1,8 @@
+/* eslint-disable no-await-in-loop */
+import dotenv from 'dotenv';
 import { getInstallationClient, getInstallations, getInstallationClientByInstallationId } from './auth';
+
+dotenv.config();
 
 const getRemotePackageJSONObject = async (installationClient, owner, repo) => {
   const fileData = await installationClient.repos.getContents({
@@ -84,7 +88,6 @@ const updateRemoteRepository = async (repo, packageName, newVersion) => {
   
   const packageJSONObject = await getRemotePackageJSONObject(installationClient, repositoryOwner, repositoryName);
   const updatedPackageJSONObject = updatePackageJSONObject(packageJSONObject, packageName, newVersion);
-  console.log(packageJSONObject === updatedPackageJSONObject);
   if (packageJSONObject === updatedPackageJSONObject) {
     console.log(`Stopping processing ${repo}, no ${packageName} installed inside.`);
     return;
@@ -106,26 +109,37 @@ const getUpdateInfo = async () => {
 };
 
 const updateAllDependents = async () => {
+  // a new function in 'auth.js' which we use to get a list of all installations of an app
   const installations = await getInstallations();
   let repos = [];
 
-  for (let i = 0; i < installations.length; i++) {
-    const client = await getInstallationClientByInstallationId(installations[i].id);
-    const installationRepos = (await client.apps.listRepos()).data.repositories
-      .map((repo) => repo.full_name)
-      .filter((repo) => repo !== process.env.SOURCE_REPO);
+  // get a list of all the repositories our GitHub application has access to
+  for (const installation in installations) {
+    if (Object.prototype.hasOwnProperty.call(installations, installation)) {
+      // another addition to auth.js
+      // getInstallationClientByInstallationId(installationId) => Ocktakit client
+      const client = await getInstallationClientByInstallationId(installation.id);
+      const installationRepos = (await client.apps.listRepos()).data.repositories
+        .map((repo) => repo.full_name)
+        .filter((repo) => repo !== process.env.SOURCE_REPO);
 
-    repos = [...repos, ...installationRepos];
+      repos = [...repos, ...installationRepos];
+    }
   }
 
+  // pull information about new version.
+  // getUpdateInfo actually uses existing getRemotePackageJSONObject function
   const { packageName, newVersion } = await getUpdateInfo();
 
-  for (let i = 0; i < repos.length; i++) {
-    try {
-      await updateRemoteRepository(repos[i], packageName, newVersion);
-      console.log(`Processed ${repos[i]}`);
-    } catch (err) {
-      console.log(`Error. Skipping ${repos[i]}.`);
+  // and update repositories.
+  for (const repo in repos) {
+    if (Object.prototype.hasOwnProperty.call(repos, repo)) {
+      try {
+        await updateRemoteRepository(repo, packageName, newVersion);
+        console.log(`Processed ${repo}`);
+      } catch (err) {
+        console.log(`Error. Skipping ${repo}.`);
+      }
     }
   }
 };
