@@ -87,7 +87,6 @@ const updateRemoteRepository = async (repo, packageName, newVersion) => {
   const remoteBranchName = await createRemoteBranch(installationClient, repositoryOwner, repositoryName, packageName, newVersion);
   await commitUpdatedObject(installationClient, repositoryOwner, repositoryName, remoteBranchName, updatedPackageJSONObject);
   await createPR(installationClient, repositoryOwner, repositoryName, remoteBranchName);
-  return true;
 };
 
 export default updateRemoteRepository;
