@@ -41,7 +41,7 @@ const createRemoteBranch = async (installationClient, repositoryOwner, repositor
   return newBranchName;
 };
 
-const commitUpdatedObject = async (installationClient, repositoryOwner, repositoryName, remoteBranchName, updatePackageJSONObject) => {
+const commitUpdatedObject = async (installationClient, repositoryOwner, repositoryName, remoteBranchName, updatedPackageJSONObject) => {
   // We get a SHA sum of the file in target branch
   const { sha } = (await installationClient.repos.getContents({
     owner: repositoryOwner,
@@ -59,7 +59,7 @@ const commitUpdatedObject = async (installationClient, repositoryOwner, reposito
     message: remoteBranchName,
     sha,
     // Note, that content goes in the base64 encoding which is an update for upstream in GitHub API
-    content: Buffer.from(JSON.stringify(updatePackageJSONObject, null, 2)).toString('base64'),
+    content: Buffer.from(JSON.stringify(updatedPackageJSONObject, null, 2)).toString('base64'),
   });
 };
 
@@ -85,7 +85,7 @@ const splitRepositoryPath = (repo) => ({
 const updateRemoteRepository = async (repo, packageName, newVersion) => {
   const { repositoryOwner, repositoryName } = splitRepositoryPath(repo);
   const installationClient = await getInstallationClient(repositoryOwner, repositoryName);
-  
+
   const packageJSONObject = await getRemotePackageJSONObject(installationClient, repositoryOwner, repositoryName);
   const updatedPackageJSONObject = updatePackageJSONObject(packageJSONObject, packageName, newVersion);
   if (packageJSONObject === updatedPackageJSONObject) {
