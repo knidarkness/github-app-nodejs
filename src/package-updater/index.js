@@ -1,4 +1,4 @@
-import getInstallationClient from './auth';
+import { getInstallationClient, getInstallations, getInstallationClientByInstallationId } from './auth';
 
 const getRemotePackageJSONObject = async (installationClient, owner, repo) => {
   const fileData = await installationClient.repos.getContents({
@@ -10,13 +10,13 @@ const getRemotePackageJSONObject = async (installationClient, owner, repo) => {
   return fileObject;
 };
 
-const updatePackageJSONObject = (packageJSONObject, packageName, newVersion) => ({
+const updatePackageJSONObject = (packageJSONObject, packageName, newVersion) => (packageJSONObject.dependencies[packageName] ? {
   ...packageJSONObject,
   dependencies: {
     ...packageJSONObject.dependencies,
     [packageName]: newVersion,
   },
-});
+} : packageJSONObject);
 
 const createRemoteBranch = async (installationClient, repositoryOwner, repositoryName, packageName, newVersion) => {
   // Firstly, we fetch commits to get SHA sum of the last commit, from which we will branch out.
@@ -84,9 +84,53 @@ const updateRemoteRepository = async (repo, packageName, newVersion) => {
   
   const packageJSONObject = await getRemotePackageJSONObject(installationClient, repositoryOwner, repositoryName);
   const updatedPackageJSONObject = updatePackageJSONObject(packageJSONObject, packageName, newVersion);
+  console.log(packageJSONObject === updatedPackageJSONObject);
+  if (packageJSONObject === updatedPackageJSONObject) {
+    console.log(`Stopping processing ${repo}, no ${packageName} installed inside.`);
+    return;
+  }
+
   const remoteBranchName = await createRemoteBranch(installationClient, repositoryOwner, repositoryName, packageName, newVersion);
   await commitUpdatedObject(installationClient, repositoryOwner, repositoryName, remoteBranchName, updatedPackageJSONObject);
   await createPR(installationClient, repositoryOwner, repositoryName, remoteBranchName);
 };
 
-export default updateRemoteRepository;
+const getUpdateInfo = async () => {
+  const { repositoryOwner, repositoryName } = splitRepositoryPath(process.env.SOURCE_REPO);
+  const client = await getInstallationClient(repositoryOwner, repositoryName);
+  const packageJson = await getRemotePackageJSONObject(client, repositoryOwner, repositoryName);
+  return {
+    packageName: packageJson.name,
+    newVersion: packageJson.version,
+  };
+};
+
+const updateAllDependents = async () => {
+  const installations = await getInstallations();
+  let repos = [];
+
+  for (let i = 0; i < installations.length; i++) {
+    const client = await getInstallationClientByInstallationId(installations[i].id);
+    const installationRepos = (await client.apps.listRepos()).data.repositories
+      .map((repo) => repo.full_name)
+      .filter((repo) => repo !== process.env.SOURCE_REPO);
+
+    repos = [...repos, ...installationRepos];
+  }
+
+  const { packageName, newVersion } = await getUpdateInfo();
+
+  for (let i = 0; i < repos.length; i++) {
+    try {
+      await updateRemoteRepository(repos[i], packageName, newVersion);
+      console.log(`Processed ${repos[i]}`);
+    } catch (err) {
+      console.log(`Error. Skipping ${repos[i]}.`);
+    }
+  }
+};
+
+export {
+  updateRemoteRepository,
+  updateAllDependents,
+};

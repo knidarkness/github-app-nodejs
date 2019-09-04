@@ -10,6 +10,13 @@ dotenv.config();
 const app = new App({ id: process.env.GITHUB_APP_IDENTIFIER, privateKey: process.env.PRIVATE_KEY });
 const jwt = app.getSignedJsonWebToken();
 
+const getInstallationAccessTokenByInstallationId = async (installationId) => {
+  const installationAccessToken = await app.getInstallationAccessToken({
+    installationId,
+  });
+  return installationAccessToken;
+};
+
 /**
  * This method will generate an installationAccessToken which we will further pass to create
  * installation level client for GitHub API.
@@ -31,11 +38,21 @@ const getInstallationAccessToken = async (owner, repo) => {
   const installationId = (await result.json()).id;
 
   // And acquire access token for that id
-  const installationAccessToken = await app.getInstallationAccessToken({
-    installationId,
-  });
+  const installationAccessToken = await getInstallationAccessTokenByInstallationId(installationId);
 
   return installationAccessToken;
+};
+
+const getInstallations = async () => {
+  const result = await fetch('https://api.github.com/app/installations',
+    {
+      headers: {
+        authorization: `Bearer ${jwt}`,
+        accept: 'application/vnd.github.machine-man-preview+json',
+      },
+    });
+  const jsonResponse = await result.json();
+  return jsonResponse;
 };
 
 const getInstallationClient = async (owner, repo) => {
@@ -47,4 +64,17 @@ const getInstallationClient = async (owner, repo) => {
   });
 };
 
-export default getInstallationClient;
+const getInstallationClientByInstallationId = async (installationId) => {
+  const installationAccessToken = await getInstallationAccessTokenByInstallationId(installationId);
+  return new Octokit({
+    auth() {
+      return `token ${installationAccessToken}`;
+    },
+  });
+};
+
+export {
+  getInstallationClient,
+  getInstallations,
+  getInstallationClientByInstallationId,
+};
