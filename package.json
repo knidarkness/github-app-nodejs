@@ -35,7 +35,7 @@
     "@octokit/app": "^4.1.0",
     "@octokit/rest": "^16.28.9",
     "dotenv": "^8.1.0",
-    "express": "^4.17.1",
+    "express": "^4.18.2",
     "node-fetch": "^2.6.0"
   }
 }
